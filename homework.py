@@ -6,15 +6,18 @@ def read_csv_data_(_data_path):
     data_type = {
         'category': [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 41, 42, 43, 44, 45, 46, 47,
                      48, 49, 50, 51, 52, 54, 55, 56, 57, 58, 59],
-        'float': [17, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40],
-        'integer': [1, 14, 15, 16, 18, 19, 20, 53],
+        'float': [17, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 53],
+        'integer': [1, 14, 15, 16, 18, 19, 20]
 
     }
 
-    data = []
+    extracted_data = []
     class_label = []
     for line in lines:
         split_line = line.split(',')
+
+        if not lines.index(line):
+            continue
 
         if 'NA' in split_line:
             continue
@@ -29,11 +32,11 @@ def read_csv_data_(_data_path):
             else:
                 split_line[i] = int(element)
 
-        data.append([split_line[0:59]])
+        extracted_data.append(split_line[0:59])
         class_label.append(split_line[59])
     f.close()
 
-    return data, class_label
+    return extracted_data, class_label
 
 
 ##############################################################
@@ -78,12 +81,18 @@ def one_hot_encode(_data):
     return OneHotEncoder().fit_transform(_data)
 
 
+##############################################################
+#                      train-test split                      #
+##############################################################
 def split_train_test(_data, _label):
     from sklearn.model_selection import train_test_split
 
-    return train_test_split(_data, _label, test_sizie=0.33, random_state=72170233)
+    return train_test_split(_data, _label, test_size=0.33, random_state=72170233)
 
 
+##############################################################
+#                compute performance measure                 #
+##############################################################
 def compute_average_precision_recall_(_test_label, _predict_label):
     from sklearn.metrics import precision_score, recall_score
 
@@ -95,8 +104,9 @@ def compute_average_precision_recall_(_test_label, _predict_label):
 
 if __name__ == '__main__':
 
-    data = 'D:\\workspace\\github\\machine_learning_homework\\MLdata2_R.csv'
-    data, label = read_csv_data_(data)
+    data_path = 'D:\\workspace\\github\\machine_learning_homework\\MLdata2_R.csv'
+    data, label = read_csv_data_(data_path)
 
     X_train, X_test, y_train, y_test = split_train_test(data, label)
-    predict_label = logistic_regression_(X_train, y_train, X_test)
+    predict_label = ada_boost_(X_train, y_train, X_test)
+    compute_average_precision_recall_(y_test, predict_label)
