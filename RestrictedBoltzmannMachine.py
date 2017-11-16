@@ -35,7 +35,7 @@ class RBM(object):
         self.n_output = n_output    # num of units in output layer
 
         if numpy_rng is None:
-            numpy_rng = numpy.random.RandomState(1234)
+            numpy_rng = numpy.random.RandomState(72170233)
 
         if W is None:
             a = 1. / n_visible
@@ -77,41 +77,39 @@ class RBM(object):
 
     def contrastive_divergence(self, lr=0.1, k=1, momentum=0.7):
 
-        for i, dat, cls in enumerate(self.input, self.output):
-        
-            ''' CD-k '''
-            ph_prop, ph_sample = self.sample_h_given_x_y(dat, cls)
+        ''' CD-k '''
+        ph_prop, ph_sample = self.sample_h_given_x_y(self.input, self.output)
 
-            chain_start = ph_sample
+        chain_start = ph_sample
 
-            for step in xrange(k):
-                if step == 0:
-                    nv_prop, nv_samples,\
-                    nh_prop, nh_samples,\
-                    no_prop, no_samples = self.gibbs_hvh(chain_start)
-                else:
-                    nv_prop, nv_samples,\
-                    nh_prop, nh_samples, \
-                    no_prop, no_samples = self.gibbs_hvh(nh_samples)
+        for step in xrange(k):
+            if step == 0:
+                nv_prop, nv_samples,\
+                nh_prop, nh_samples,\
+                no_prop, no_samples = self.gibbs_hvh(chain_start)
+            else:
+                nv_prop, nv_samples,\
+                nh_prop, nh_samples, \
+                no_prop, no_samples = self.gibbs_hvh(nh_samples)
 
-            self.W += lr * ((numpy.dot(dat/self.input.var(axis=0)).T, ph_prop) -
-                            numpy.dot(nv_samples / self.input.var(axis=0)).T, nh_prop)  # 모멘트 텀 반영안됨
-            self.U += lr * (numpy.dot(ph_prop.T, cls) - numpy.dot(nh_prop, no_samples))
-            self.vbias += lr * ((dat - nv_samples)/ self.input.var(axis=0))
-            self.hbias += lr * (ph_prop - nh_prop)
-            self.obias += lr * numpy.mean(cls - no_samples)
-
+        self.W += lr * numpy.mean(((numpy.dot(self.input/self.input.var(axis=0)).T, ph_prop) -
+                        (numpy.dot(nv_samples / self.input.var(axis=0)).T, nh_prop)), axis=0)  # 모멘트 텀 반영안됨
+        self.U += lr * numpy.mean((numpy.dot(ph_prop.T, self.output) - numpy.dot(nh_prop.T, no_samples)), axis=0)
+        self.vbias += lr * numpy.mean(((self.input - nv_samples)/ self.input.var(axis=0)), axis=0)
+        self.hbias += lr * numpy.mean((ph_prop - nh_prop), axis=0)
+        self.obias += lr * numpy.mean(self.output - no_samples, axis=0)
 
     def gibbs_hvh(self, h0_sample):
         v1_mean, v1_sample = self.sample_x_given_h(h0_sample)
-        h1_mean, h1_sample = self.sample_h_given_x_y(v1_sample)
         y1_mean, y1_sample = self.sample_y_given_h(h0_sample)
+        h1_mean, h1_sample = self.sample_h_given_x_y(v1_sample, y1_sample)
 
         return [v1_mean, v1_sample,
                 h1_mean, h1_sample,
                 y1_mean, y1_sample]
     
 
+    """
     def get_reconstruction_cross_entropy(self):
         pre_sigmoid_activation_h = numpy.dot(self.input, self.W) + self.hbias
         sigmoid_activation_h = sigmoid(pre_sigmoid_activation_h)
@@ -125,12 +123,13 @@ class RBM(object):
                       axis=1))
         
         return cross_entropy
-
+    """
 
     # 직접코딩
     def sample_h_given_x_y(self, x0_sample, y0_sample):
+        print (self.n_output)
         h1_prop = sigmoid(numpy.dot(x0_sample/self.input.var(axis=0), self.W)+
-                          numpy.dot(y0_sample, self.U)+self.hbias)
+                          numpy.dot(y0_sample, self.U.T) +self.hbias)
         h1_sample = self.numpy_rng.binomial(size=h1_prop.shape,n=1,p=h1_prop)
 
         return [h1_prop, h1_sample]
@@ -148,39 +147,46 @@ class RBM(object):
             mean.append(tmp/temp.sum())
 
         y1_prop = numpy.asarray(mean)
-        y1_sample = self.numpy_rng.multinomial(y1_prop, size=y1_prop.shape, p=y1_prop)
+        y1_sample = self.numpy_rng.multinomial(1, size=y1_prop.shape[0], pvals=y1_prop)
 
         return [y1_prop, y1_sample]
 
+    def predict(self, _test_data, _test_label):
+        tmp = numpy.dot(_test_data,self.W)
+        result = numpy.dot(tmp, self.U)
+
+        return result
 
 def data_load(_file_name):
 
     file_path = "D:\\workspace\\github\\machine_learning_homework\\" + _file_name + ".txt"
-    f = open(file_path)
+    f = open(file_path, 'r')
     data = []
     label = []
     if _file_name == 'pima':
         for line in f.readlines():
-            split_line = line.split[',']
+            split_line = line.split(',')
 
             label.append(int(split_line[-1]))
 
+            data.append([])
             for dat in split_line[0:-1]:
-                data.append(float(dat))
+                data[-1].append(float(dat))
 
     elif _file_name == 'new_tyroid':
         for line in f.readlines():
-            split_line = line.split[',']
+            split_line = line.split(',')
 
             label.append(int(split_line[0]))
 
+            data.append([])
             for dat in split_line[1:]:
-                data.append(float(dat))
+                data[-1].append(float(dat))
 
-    data = numpy.asarray(data)
-    label = numpy.asarray(label)
+    result_data = numpy.asarray(data)
+    result_label = numpy.asarray(label)
 
-    return data, label
+    return result_data, result_label
 
 def one_hot_encoding(_label):
     n_class = len(set(_label))
@@ -202,8 +208,9 @@ def test_rbm(learning_rate=0.1, k=1, training_epochs=1000):
     data, label = data_load(file_name)
     one_hot_label = one_hot_encoding(label)
 
+    X_train, X_test, y_train, y_test = train_test_split(data, one_hot_label, test_size=0.33, random_state=72170233)
 
-
+    output_node = len(one_hot_label[0])
     if file_name == 'pima':
         input_node = 8
         hidden_node = 5
@@ -215,16 +222,14 @@ def test_rbm(learning_rate=0.1, k=1, training_epochs=1000):
     rng = numpy.random.RandomState(72170233)
 
     # construct RBM
-    rbm = RBM(input=data, n_visible=input_node, n_hidden=hidden_node, numpy_rng=rng)
+    rbm = RBM(input=X_train, output=y_train, n_visible=input_node, n_hidden=hidden_node, numpy_rng=rng, n_output=output_node)  # TODO: __init__파라미터 보고 바꿔야 함
 
     # train
     for epoch in xrange(training_epochs):
         rbm.contrastive_divergence(lr=learning_rate, k=k)
-        cost = rbm.get_reconstruction_cross_entropy()
-        print >> sys.stderr, 'Training epoch %d, cost is ' % epoch, cost
 
-
-
+    rs = rbm.predict(X_test, y_test)
+    print(rs)
 
 
 if __name__ == "__main__":
