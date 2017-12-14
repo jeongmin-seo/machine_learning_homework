@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 from scipy import signal
 
 from sklearn.decomposition import FastICA, PCA
-#################################
+
+##################################################
 #  Question 1.
-#################################
+##################################################
 
 np.random.seed(0)
 n_samples = 2000
@@ -55,3 +56,8 @@ for ii, (model, name) in enumerate(zip(models, names), 1):
 
 plt.subplots_adjust(0.09, 0.04, 0.94, 0.94, 0.26, 0.46)
 plt.show()
+
+
+##################################################
+#  Question 2.
+##################################################
